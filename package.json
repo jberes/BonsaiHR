@@ -20,7 +20,7 @@
     "test": "tsc --project tsconfig.test.json && wtr"
   },
   "dependencies": {
-    "@vaadin/router": "^1.7.4",
+    "@vaadin/router": "^2.0.0",
     "bonsai-hr": "file:",
     "igniteui-webcomponents": "~5.2.0",
     "igniteui-webcomponents-core": "~5.2.0",
