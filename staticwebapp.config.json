@@ -1,0 +1,10 @@
+{
+    "navigationFallback": {
+      "rewrite": "/index.html"
+    },
+    "routes": [],
+    "platform": {
+      "apiRuntime": "node:18"
+    },
+    "outputLocation": "dist"
+  }
