@@ -1,11 +1,11 @@
 import { html, css, LitElement } from 'lit';
 import { state, query } from 'lit/decorators.js';
-import { defineComponents, IgcButtonComponent, IgcIconComponent, IgcIconButtonComponent } from 'igniteui-webcomponents';
+import { defineComponents, IgcButtonComponent, IgcIconComponent } from 'igniteui-webcomponents';
 
 // Define the components we'll use
-defineComponents(IgcButtonComponent, IgcIconComponent, IgcIconButtonComponent);
+defineComponents(IgcButtonComponent, IgcIconComponent);
 
-// Create our Notes class
+// Create our Notes class - Read-Only version
 class Notes extends LitElement {
   static styles = css`
     :host {
@@ -110,23 +110,7 @@ class Notes extends LitElement {
       height: max-content;
       min-width: min-content;
     }
-    .markdown-editor {
-      width: 100%;
-      flex-grow: 1;
-      min-width: min-content;
-      resize: none;
-      padding: 12px;
-      font-family: 'Consolas', 'Monaco', monospace;
-      font-size: 14px;
-      line-height: 1.5;
-      border: 1px solid #eaeaea;
-      border-radius: 4px;
-      background-color: white;
-      box-sizing: border-box;
-      min-height: 300px;
-      height: 100%;
-    }
-    .markdown-preview {
+    .markdown-content {
       width: 100%;
       min-height: 300px;
       padding: 16px;
@@ -142,87 +126,92 @@ class Notes extends LitElement {
       line-height: 1.6;
       color: #333;
     }
-    .markdown-toolbar {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 8px;
-    }
     /* Markdown styling */
-    .markdown-preview h1, .markdown-preview h2, .markdown-preview h3, 
-    .markdown-preview h4, .markdown-preview h5, .markdown-preview h6 {
+    .markdown-content h1, .markdown-content h2, .markdown-content h3, 
+    .markdown-content h4, .markdown-content h5, .markdown-content h6 {
       margin-top: 1.5em;
       margin-bottom: 0.5em;
       font-weight: 600;
       color: var(--ig-primary-500);
     }
-    .markdown-preview h1 { font-size: 2em; }
-    .markdown-preview h2 { font-size: 1.5em; }
-    .markdown-preview h3 { font-size: 1.25em; }
-    .markdown-preview p {
+    .markdown-content h1 { font-size: 2em; }
+    .markdown-content h2 { font-size: 1.5em; }
+    .markdown-content h3 { font-size: 1.25em; }
+    .markdown-content p {
       margin: 1em 0;
       line-height: 1.6;
     }
-    .markdown-preview ul, .markdown-preview ol {
+    .markdown-content ul, .markdown-content ol {
       margin: 1em 0;
       padding-left: 2em;
     }
-    .markdown-preview ul li, .markdown-preview ol li {
+    .markdown-content ul li, .markdown-content ol li {
       margin: 0.5em 0;
     }
-    .markdown-preview code {
+    .markdown-content code {
       font-family: monospace;
       padding: 0.2em 0.4em;
       background-color: rgba(0,0,0,0.05);
       border-radius: 3px;
     }
-    .markdown-preview pre {
+    .markdown-content pre {
       background-color: #f6f8fa;
       padding: 16px;
       overflow: auto;
       border-radius: 6px;
     }
-    .markdown-preview pre code {
+    .markdown-content pre code {
       background-color: transparent;
       padding: 0;
     }
-    .markdown-preview blockquote {
+    .markdown-content blockquote {
       margin: 1em 0;
       padding-left: 1em;
       border-left: 4px solid #ddd;
       color: #555;
     }
-    .markdown-preview a {
+    .markdown-content a {
       color: var(--ig-primary-500);
       text-decoration: none;
     }
-    .markdown-preview a:hover {
+    .markdown-content a:hover {
       text-decoration: underline;
     }
-    .markdown-preview img {
+    .markdown-content img {
       max-width: 100%;
     }
-    .markdown-preview table {
+    .markdown-content table {
       border-collapse: collapse;
       width: 100%;
       margin: 1em 0;
     }
-    .markdown-preview table th, .markdown-preview table td {
+    .markdown-content table th, .markdown-content table td {
       border: 1px solid #ddd;
       padding: 8px;
     }
-    .markdown-preview table th {
+    .markdown-content table th {
       background-color: #f2f2f2;
       text-align: left;
     }
-    .button-group {
+    .loading-state {
       display: flex;
-      gap: 10px;
+      justify-content: center;
+      align-items: center;
+      height: 100%;
+      width: 100%;
+      color: #666;
+    }
+    .error-state {
+      padding: 16px;
+      color: #d32f2f;
+      background-color: #ffeaea;
+      border-radius: 4px;
+      margin-bottom: 16px;
     }
   `;
 
-  // The markdown content
-  @state()
-  private markdown: string = `We organize around the funnels project, which is currently 4 funnels:
+  // Default content as fallback
+  private defaultContent: string = `We organize around the funnels project, which is currently 4 funnels:
 - UI/UX
 - App Builder
 - Reveal
@@ -234,16 +223,22 @@ We hire sales leadership for Reveal and Slingshot. In lieu of that leadership to
 
 Other changes include movement of dedicated sales under the VP Reveal Sales, and Morgan as the admin reports to Vince instead of Derek.`;
 
-  // Toggle between edit and preview modes
+  // The markdown content
   @state()
-  private isEditing: boolean = false;
+  private markdown: string = '';
+
+  @state()
+  private isLoading: boolean = true;
+
+  @state()
+  private loadError: string = '';
+
+  // File path 
+  private readonly filePath: string = '../assets/notes.md';
 
   // Reference to elements
-  @query('.markdown-preview')
-  private previewElement!: HTMLDivElement;
-
-  @query('.markdown-editor')
-  private editorElement!: HTMLTextAreaElement;
+  @query('.markdown-content')
+  private contentElement!: HTMLDivElement;
 
   // Constructor to load scripts early
   constructor() {
@@ -252,17 +247,12 @@ Other changes include movement of dedicated sales under the VP Reveal Sales, and
   }
 
   // Called after first render
-  firstUpdated() {
-    // Render markdown on initial load
+  async firstUpdated() {
+    // Try to load the markdown file
+    await this.loadMarkdownFile();
+    
+    // Render markdown
     this.renderMarkdown();
-  }
-
-  // Called after each update
-  updated(changedProperties: Map<string, any>) {
-    // If we're switching to preview mode, render the markdown
-    if (changedProperties.has('isEditing') && !this.isEditing) {
-      this.renderMarkdown();
-    }
   }
 
   private async loadScripts(): Promise<void> {
@@ -292,13 +282,14 @@ Other changes include movement of dedicated sales under the VP Reveal Sales, and
       console.log('Markdown libraries loaded successfully');
     } catch (error) {
       console.error('Error loading markdown libraries:', error);
+      this.loadError = 'Failed to load required libraries for rendering markdown.';
     }
   }
 
   // Render markdown to HTML
   private renderMarkdown() {
-    if (!this.previewElement) {
-      console.warn('Preview element not found');
+    if (!this.contentElement) {
+      console.warn('Content element not found');
       return;
     }
     
@@ -319,12 +310,12 @@ Other changes include movement of dedicated sales under the VP Reveal Sales, and
         const cleanHtml = DOMPurify.sanitize(rawHtml);
         
         // Set the HTML content
-        this.previewElement.innerHTML = cleanHtml;
+        this.contentElement.innerHTML = cleanHtml;
         console.log('Markdown rendered successfully');
       } catch (error) {
         console.error('Error rendering markdown:', error);
         const errorMessage = (error instanceof Error) ? error.message : 'Unknown error';
-        this.previewElement.innerHTML = `
+        this.contentElement.innerHTML = `
           <p style="color: red;">Error rendering markdown: ${errorMessage}</p>
           <pre style="white-space: pre-wrap;">${this.markdown}</pre>
         `;
@@ -333,7 +324,7 @@ Other changes include movement of dedicated sales under the VP Reveal Sales, and
       console.warn('Markdown libraries not loaded yet');
       
       // Fallback if libraries aren't loaded yet - use a styled version
-      this.previewElement.innerHTML = `
+      this.contentElement.innerHTML = `
         <div style="font-size: 14px; line-height: 1.6; color: #333; white-space: pre-wrap; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;">
           ${this.markdown.replace(/\n/g, '<br>').replace(/- /g, '• ')}
         </div>
@@ -341,80 +332,39 @@ Other changes include movement of dedicated sales under the VP Reveal Sales, and
     }
   }
 
-  // Handle markdown content changes
-  private handleMarkdownChange(e: Event) {
-    const textarea = e.target as HTMLTextAreaElement;
-    this.markdown = textarea.value;
-  }
-
-  // Toggle between edit and preview modes
-  private toggleEditMode() {
-    this.isEditing = !this.isEditing;
+  // Load the markdown file
+  private async loadMarkdownFile() {
+    this.isLoading = true;
+    this.loadError = '';
     
-    // If switching to edit mode, focus the editor
-    if (this.isEditing) {
-      setTimeout(() => {
-        if (this.editorElement) {
-          this.editorElement.focus();
-        }
-      }, 0);
+    try {
+      // Try loading the file from assets
+      const response = await fetch(this.filePath);
+      
+      if (response.ok) {
+        const content = await response.text();
+        this.markdown = content;
+        console.log('Loaded content from file on server');
+      } else {
+        // If file doesn't exist or can't be read, use default content
+        console.warn(`File not found at ${this.filePath}, using default content`);
+        this.markdown = this.defaultContent;
+        this.loadError = `Could not load notes.md (${response.status}: ${response.statusText}). Using default content.`;
+      }
+    } catch (error) {
+      console.error('Error loading markdown file:', error);
+      this.markdown = this.defaultContent;
+      this.loadError = 'Failed to load notes.md. Using default content.';
+    } finally {
+      this.isLoading = false;
     }
   }
 
-  // Insert markdown syntax at cursor position
-  private insertMarkdown(syntax: string, placeholder: string = '') {
-    if (!this.editorElement) return;
-    
-    const textarea = this.editorElement;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selectedText = textarea.value.substring(start, end);
-    
-    // If text is selected, wrap it with syntax
-    const textToInsert = selectedText || placeholder;
-    const newText = syntax.replace('$1', textToInsert);
-    
-    // Insert at cursor position
-    const beforeCursor = textarea.value.substring(0, start);
-    const afterCursor = textarea.value.substring(end);
-    
-    this.markdown = beforeCursor + newText + afterCursor;
-    
-    // Set focus back to textarea and position cursor
-    setTimeout(() => {
-      textarea.focus();
-      
-      // If no text was selected, place cursor inside the syntax
-      if (!selectedText) {
-        const newCursorPos = start + newText.indexOf(placeholder) + (placeholder.length / 2);
-        textarea.setSelectionRange(newCursorPos, newCursorPos);
-      } else {
-        // If text was selected, place cursor after the inserted syntax
-        const newCursorPos = start + newText.length;
-        textarea.setSelectionRange(newCursorPos, newCursorPos);
-      }
-    }, 0);
-  }
-
-  // Helper methods for toolbar buttons
-  private insertHeading() {
-    this.insertMarkdown('## $1', 'Heading');
-  }
-
-  private insertBold() {
-    this.insertMarkdown('**$1**', 'bold text');
-  }
-
-  private insertItalic() {
-    this.insertMarkdown('*$1*', 'italic text');
-  }
-
-  private insertList() {
-    this.insertMarkdown('- $1\n- \n- ', 'List item');
-  }
-
-  private insertLink() {
-    this.insertMarkdown('[$1](https://example.com)', 'link text');
+  // Handle refresh action
+  private refresh() {
+    this.loadMarkdownFile().then(() => {
+      this.renderMarkdown();
+    });
   }
 
   render() {
@@ -427,42 +377,22 @@ Other changes include movement of dedicated sales under the VP Reveal Sales, and
               Notes
             </h3>
             <div class="row-layout group_3">
-              <div class="button-group">
-                <igc-button @click="${this.toggleEditMode}" variant="outlined">
-                  ${this.isEditing ? 'Preview' : 'Edit'}
-                </igc-button>
-              </div>
+              <igc-button @click="${this.refresh}" variant="outlined">
+                Refresh
+              </igc-button>
             </div>
           </div>
+          
           <div class="row-layout group_4">
             <div class="column-layout group_5">
               <div class="column-layout group_6">
-                ${this.isEditing ? html`
-                  <div class="markdown-toolbar">
-                    <igc-button @click="${this.insertHeading}" variant="flat" title="Heading">
-                      H
-                    </igc-button>
-                    <igc-button @click="${this.insertBold}" variant="flat" title="Bold">
-                      <strong>B</strong>
-                    </igc-button>
-                    <igc-button @click="${this.insertItalic}" variant="flat" title="Italic">
-                      <em>I</em>
-                    </igc-button>
-                    <igc-button @click="${this.insertList}" variant="flat" title="List">
-                      • List
-                    </igc-button>
-                    <igc-button @click="${this.insertLink}" variant="flat" title="Link">
-                      🔗
-                    </igc-button>
-                  </div>
-                  <textarea 
-                    class="markdown-editor"
-                    .value="${this.markdown}"
-                    @input="${this.handleMarkdownChange}"
-                    placeholder="Write your markdown here..."
-                  ></textarea>
+                ${this.isLoading ? html`
+                  <div class="loading-state">Loading notes...</div>
                 ` : html`
-                  <div class="markdown-preview" style="flex: 1; height: 100%; background-color: white;"></div>
+                  ${this.loadError ? html`
+                    <div class="error-state">${this.loadError}</div>
+                  ` : ''}
+                  <div class="markdown-content"></div>
                 `}
               </div>
             </div>

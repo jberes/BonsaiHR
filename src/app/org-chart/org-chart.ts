@@ -80,6 +80,8 @@ export default class OrgChart extends LitElement {
       min-height: 50px;
       flex-grow: 1;
       flex-basis: 0;
+      display: flex;
+      flex-direction: column;
     }
     .group_5 {
       background-color: var(--ig-surface-500);
@@ -97,6 +99,8 @@ export default class OrgChart extends LitElement {
       flex-grow: 1;
       flex-basis: 0;
       padding: 16px;
+      display: flex;
+      flex-direction: column;
     }
     .h3 {
       color: var(--ig-primary-500);
@@ -112,8 +116,12 @@ export default class OrgChart extends LitElement {
     }
     #svg-tree {
       width: 100%;
-      height: 400px;
-      margin-top: 20px;
+      height: 100%;
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
     }
     .loading {
       font-size: 24px;
@@ -181,6 +189,9 @@ export default class OrgChart extends LitElement {
     { value: 'right', name: 'Right to Left' }
   ];
 
+  // Observer for window resize
+  private resizeObserver: ResizeObserver | null = null;
+
   constructor() {
     super();
     bambooSalesService.getPeopleList().then(data => this.bambooSalesPeople = data);
@@ -201,11 +212,34 @@ export default class OrgChart extends LitElement {
         this.initOrgChart();
       }
     });
+
+    // Set up resize observer to update chart dimensions when container resizes
+    if (this.treeContainer && 'ResizeObserver' in window) {
+      this.resizeObserver = new ResizeObserver(entries => {
+        if (this.currentTree) {
+          this.initOrgChart();
+        }
+      });
+      this.resizeObserver.observe(this.treeContainer);
+    }
+  }
+
+  // Cleanup when component is removed
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+    }
   }
 
   // Load the ApexTree script dynamically
   private async loadApexTreeScript(): Promise<void> {
     return new Promise((resolve, reject) => {
+      if ((window as any)['ApexTree']) {
+        resolve();
+        return;
+      }
+      
       const script = document.createElement('script');
       script.src = 'https://cdn.jsdelivr.net/npm/apextree';
       script.onload = () => resolve();
@@ -391,27 +425,35 @@ export default class OrgChart extends LitElement {
     return node;
   }
 
-  // Create hierarchy for a specific manager
-  private createManagerHierarchy(managerId: string): any {
+  // Build complete hierarchy for a specific manager
+  private buildManagerSpecificHierarchy(managerId: string, maxDepth: number): any {
     if (managerId === 'all' || !this.originalHierarchy) {
       return this.originalHierarchy;
     }
     
-    // Find the manager in the employee list
-    const manager = this.allEmployees.find(emp => emp.PersonID == managerId);
-    if (!manager) {
-      console.error('Manager not found:', managerId);
+    // Find the complete path from root to the selected manager
+    const managerPath: any[] = [];
+    let currentManagerId = managerId;
+    
+    // Find the manager's ancestor path up to the root
+    while (currentManagerId) {
+      const manager = this.allEmployees.find(emp => emp.PersonID == currentManagerId);
+      if (!manager) break;
+      
+      managerPath.unshift(manager);
+      currentManagerId = manager.ReportsTo;
+    }
+    
+    // If we couldn't find a path, return the original hierarchy
+    if (managerPath.length === 0) {
       return this.originalHierarchy;
     }
     
-    // Build a new hierarchy starting with this manager
-    const subEmployees = this.allEmployees.filter(emp => 
-      emp.PersonID == managerId || emp.ReportsTo == managerId
-    );
-    
-    // Create a mini-org with just this manager and direct reports
+    // Now build a hierarchy with just the path to the manager and the manager's subtree
     const employeeMap: Record<string, any> = {};
-    subEmployees.forEach(emp => {
+    
+    // Create nodes for all employees
+    this.allEmployees.forEach(emp => {
       employeeMap[emp.PersonID] = {
         id: emp.PersonID.toString(),
         data: {
@@ -427,17 +469,75 @@ export default class OrgChart extends LitElement {
       };
     });
     
-    // Create the parent-child relationships
-    const childrenIds = new Set();
-    subEmployees.forEach(emp => {
-      if (emp.ReportsTo && employeeMap[emp.ReportsTo]) {
-        employeeMap[emp.ReportsTo].children.push(employeeMap[emp.PersonID]);
-        childrenIds.add(emp.PersonID);
+    // Build hierarchy for manager's subtree
+    const buildSubtree = (managerId: string, depth: number = 0): any => {
+      const manager = employeeMap[managerId];
+      if (!manager) return null;
+      
+      const node = { 
+        ...manager,
+        children: []
+      };
+      
+      // Add children if we haven't reached max depth
+      if (maxDepth === 0 || depth < maxDepth) {
+        // Find all direct reports
+        const directReports = this.allEmployees
+          .filter(emp => emp.ReportsTo == managerId)
+          .map(emp => emp.PersonID);
+        
+        // Add each direct report to the manager's children
+        node.children = directReports
+          .map(reportId => buildSubtree(reportId, depth + 1))
+          .filter(child => child !== null);
       }
-    });
+      
+      return node;
+    };
     
-    // Return the manager node
-    return employeeMap[managerId];
+    // Build the manager's subtree
+    const managerSubtree = buildSubtree(managerId);
+    if (!managerSubtree) {
+      return this.originalHierarchy;
+    }
+    
+    // Create path to the manager
+    let currentNode = null;
+    let rootNode = null;
+    
+    for (let i = 0; i < managerPath.length; i++) {
+      const emp = managerPath[i];
+      
+      // Skip the selected manager as we've already built their subtree
+      if (emp.PersonID == managerId) continue;
+      
+      const node = { 
+        ...employeeMap[emp.PersonID],
+        children: [] 
+      };
+      
+      // Set root if this is the first node
+      if (i === 0) {
+        rootNode = node;
+      }
+      
+      // Set this node as the child of the previous node
+      if (currentNode) {
+        currentNode.children = [node];
+      }
+      
+      // Update current node
+      currentNode = node;
+    }
+    
+    // If we found a path, attach the manager's subtree to it
+    if (currentNode) {
+      currentNode.children = [managerSubtree];
+      return rootNode;
+    }
+    
+    // If no path was found, just return the manager's subtree
+    return managerSubtree;
   }
 
   // Initialize and render the organization chart
@@ -446,11 +546,14 @@ export default class OrgChart extends LitElement {
       return;
     }
     
+    // Calculate container dimensions
+    const containerRect = this.treeContainer.getBoundingClientRect();
+    
     // Set options for ApexTree
     const options = {
       contentKey: 'data', // Specify where node content is stored
-      width: this.treeContainer.clientWidth || window.innerWidth - 15,
-      height: this.treeContainer.clientHeight || window.innerHeight - 15,
+      width: containerRect.width > 0 ? containerRect.width : window.innerWidth - 15,
+      height: containerRect.height > 0 ? containerRect.height : window.innerHeight - 15,
       nodeWidth: 150,
       nodeHeight: 100,
       childrenSpacing: 60,
@@ -458,7 +561,7 @@ export default class OrgChart extends LitElement {
       direction: this.direction,
       fontColor: '#fff',
       borderColor: '#333',
-      canvasStyle: 'border: 1px solid #ddd; background: #f8f8f8;',
+      canvasStyle: 'background: transparent;', // No border, transparent bg
       enableExpandCollapse: false,
       enableToolbar: true,
       nodeTemplate: (content: any) => `
@@ -484,12 +587,17 @@ export default class OrgChart extends LitElement {
     this.treeContainer.innerHTML = '';
     
     try {
-      // Get the appropriate hierarchy based on selected manager
-      let hierarchyToUse = this.createManagerHierarchy(this.selectedManager);
+      // Get the manager-specific hierarchy with depth limitation applied directly
+      let hierarchyToUse;
       
-      // Apply depth limitation if needed
-      if (this.maxDepth > 0) {
-        hierarchyToUse = this.limitHierarchyDepth(hierarchyToUse, this.maxDepth);
+      if (this.selectedManager === 'all') {
+        // If viewing entire org, apply depth limitation to the original hierarchy
+        hierarchyToUse = this.maxDepth > 0 
+          ? this.limitHierarchyDepth(this.originalHierarchy, this.maxDepth)
+          : this.originalHierarchy;
+      } else {
+        // For specific manager, build hierarchy with depth limitation built in
+        hierarchyToUse = this.buildManagerSpecificHierarchy(this.selectedManager, this.maxDepth);
       }
       
       // Set the current direction
