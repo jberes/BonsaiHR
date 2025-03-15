@@ -174,15 +174,7 @@ export default class App extends LitElement {
             </span>
             <div slot="content">Org Chart</div>
           </igc-nav-drawer-item>
-          <igc-nav-drawer-item @click="${() => Router.go(`/people-grid`)}">
-            <span slot="icon">
-              <span class="material-icons icon">
-                group
-              </span>
-              <igc-ripple></igc-ripple>
-            </span>
-            <div slot="content">People</div>
-          </igc-nav-drawer-item>
+
 
           <igc-nav-drawer-item @click="${() => Router.go(`/notes`)}">
             <span slot="icon">

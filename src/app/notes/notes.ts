@@ -222,7 +222,9 @@ class Notes extends LitElement {
 
   // The markdown content
   @state()
-  private markdown: string = `We organize around the funnels project, which is currently 4 funnels:
+  private markdown: string = `
+  We organize around the funnels project, which is currently 4 funnels:
+
 - UI/UX
 - App Builder
 - Reveal
@@ -231,6 +233,8 @@ class Notes extends LitElement {
 Vince is promoted to manage the regions / MD's and is responsible for the largest, primary revenue drivers which is the UI/UX and the App Builder funnels. 
 
 We hire sales leadership for Reveal and Slingshot. In lieu of that leadership today, Jason is responsible for Reveal, and Casey is responsible for Slingshot.
+
+I don't believe we should split anyone in UI/UX or App Builder sales to Slingshot.  Product / GTM is different, and we need to focus on the largest revenue drivers.
 
 Other changes include movement of dedicated sales under the VP Reveal Sales, and Morgan as the admin reports to Vince instead of Derek.`;
 
