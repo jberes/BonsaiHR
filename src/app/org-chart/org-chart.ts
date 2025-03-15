@@ -301,8 +301,10 @@ export default class OrgChart extends LitElement {
           originalData: emp
         },
         options: {
-          nodeBGColor: '#cccccc',
-          nodeBGColorHover: '#cccccc',
+          nodeBGColor: '#FFFFFF',
+          nodeBGColorHover: '#F8F8F8',
+          nodeTextColor: '#2b7cb3',
+          nodeBorderColor: 'transparent'
         },
         children: []
       };
@@ -344,8 +346,10 @@ export default class OrgChart extends LitElement {
           imageURL: this.DEFAULT_PLACEHOLDER
         },
         options: {
-          nodeBGColor: '#4f6d7a',
-          nodeBGColorHover: '#4f6d7a',
+          nodeBGColor: '#F0F8FF',
+          nodeBGColorHover: '#E0F0FF',
+          nodeTextColor: '#2b7cb3',
+          nodeBorderColor: 'transparent'
         },
         children: rootNodes
       };
@@ -362,31 +366,32 @@ export default class OrgChart extends LitElement {
     
     // Helper function to assign colors to a subtree
     const assignColorsToSubtree = (node: any, parentColorIndex: number | null = null) => {
-      // Get a color for this node if it's not the root
+      // Set default node styling to white background
       if (node.id !== 'root') {
-        const nodeColor = colors[colorIndex % colors.length];
-        node.options.nodeBGColor = nodeColor;
-        node.options.nodeBGColorHover = nodeColor;
+        node.options = {
+          ...node.options,
+          nodeBGColor: '#FFFFFF',
+          nodeBGColorHover: '#F8F8F8',
+          nodeTextColor: '#2b7cb3', // Blue text color similar to the image
+          nodeBorderColor: 'transparent',
+          nodeLineColor: '#DDDDDD' // Light gray lines connecting nodes
+        };
+      } else {
+        // Root node can have a slightly different style if needed
+        node.options = {
+          ...node.options,
+          nodeBGColor: '#F0F8FF', // Light blue background for root
+          nodeBGColorHover: '#E0F0FF',
+          nodeTextColor: '#2b7cb3',
+          nodeBorderColor: 'transparent',
+          nodeLineColor: '#DDDDDD'
+        };
       }
       
-      // All children share the same color, but different from parent
+      // Process children recursively
       if (node.children && node.children.length > 0) {
-        // Move to next color for the children
-        const childColorIndex = (colorIndex + 1) % colors.length;
-        const childColor = colors[childColorIndex];
-        
-        // Assign the same color to all children
         node.children.forEach((child: any) => {
-          child.options.nodeBGColor = childColor;
-          child.options.nodeBGColorHover = childColor;
-        });
-        
-        // Recursively assign colors to grandchildren, incrementing color
-        colorIndex = (childColorIndex + 1) % colors.length;
-        node.children.forEach((child: any) => {
-          if (child.children && child.children.length > 0) {
-            assignColorsToSubtree(child, childColorIndex);
-          }
+          assignColorsToSubtree(child);
         });
       }
     };
@@ -462,8 +467,10 @@ export default class OrgChart extends LitElement {
           originalData: emp
         },
         options: {
-          nodeBGColor: '#cccccc',
-          nodeBGColorHover: '#cccccc',
+          nodeBGColor: '#FFFFFF',
+          nodeBGColorHover: '#F8F8F8',
+          nodeTextColor: '#2b7cb3',
+          nodeBorderColor: 'transparent'
         },
         children: []
       };
@@ -555,22 +562,24 @@ export default class OrgChart extends LitElement {
       width: containerRect.width > 0 ? containerRect.width : window.innerWidth - 15,
       height: containerRect.height > 0 ? containerRect.height : window.innerHeight - 15,
       nodeWidth: 150,
-      nodeHeight: 100,
+      nodeHeight: 120, // Increased height for better spacing
       childrenSpacing: 60,
       siblingSpacing: 40,
       direction: this.direction,
-      fontColor: '#fff',
-      borderColor: '#333',
+      fontColor: '#333', // Darker font color
+      borderColor: 'transparent', // Remove borders
+      nodeBorderRadius: '12px', // Rounded corners for nodes
       canvasStyle: 'background: transparent;', // No border, transparent bg
       enableExpandCollapse: false,
       enableToolbar: true,
+      // Updated node styling to match the image
       nodeTemplate: (content: any) => `
-        <div style='display: flex; flex-direction: column; gap: 10px; justify-content: center; align-items: center; height: 100%;'>
-          <img style='width: 50px; height: 50px; border-radius: 50%; object-fit: cover;' 
+        <div style='display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; width: 100%; padding: 8px; background-color: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);'>
+          <img style='width: 70px; height: 70px; border-radius: 50%; object-fit: cover; margin-bottom: 10px;' 
                src='${content.imageURL || this.DEFAULT_PLACEHOLDER}' 
                alt='${content.name}' 
                onerror="this.src='${this.DEFAULT_PLACEHOLDER}';" />
-          <div style="font-weight: bold; font-family: Arial; font-size: 14px; text-align: center; max-width: 130px; white-space: normal; overflow-wrap: break-word;">
+          <div style="font-weight: 500; font-family: Arial, sans-serif; font-size: 16px; color: #2b7cb3; text-align: center; max-width: 140px; white-space: normal; overflow-wrap: break-word;">
             ${content.name}
           </div>
         </div>
