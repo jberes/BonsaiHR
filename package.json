@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@vaadin/router": "^1.7.4",
+    "bonsai-hr": "file:",
     "igniteui-webcomponents": "~5.2.0",
     "igniteui-webcomponents-core": "~5.2.0",
     "igniteui-webcomponents-grids": "~5.2.0",
@@ -33,6 +34,7 @@
   "devDependencies": {
     "@babel/preset-env": "^7.20.2",
     "@open-wc/testing": "^4.0.0",
+    "@types/mocha": "^10.0.6",
     "@typescript-eslint/eslint-plugin": "^8.21.0",
     "@typescript-eslint/parser": "^8.21.0",
     "@web/dev-server": "^0.4.6",
@@ -46,7 +48,6 @@
     "rimraf": "^5.0.10",
     "source-map": "^0.7.4",
     "tslib": "^2.8.1",
-    "@types/mocha": "^10.0.6",
     "vite": "^6.0.10",
     "vite-plugin-pwa": "^0.21.1",
     "vite-plugin-static-copy": "^2.2.0"
