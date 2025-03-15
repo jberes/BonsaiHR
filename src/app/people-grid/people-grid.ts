@@ -145,9 +145,7 @@ export default class PeopleGrid extends LitElement {
 
   render() {
     return html`
-      <link rel='stylesheet' href='../../ig-theme.css'>
-      <link rel='stylesheet' href='node_modules/igniteui-webcomponents-grids/grids/themes/light/material.css'>
-      <div class="row-layout group">
+          <div class="row-layout group">
         <div class="column-layout group_1">
           <div class="row-layout group_2">
             <h3 class="h3">
