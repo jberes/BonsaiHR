@@ -130,10 +130,18 @@ export default class PeopleGrid extends LitElement {
 
   @state()
   private bambooSalesPeople: PeopleType[] = [];
+  
+  // Default placeholder image URL
+  private placeholderImageUrl: string = 'https://image-placeholder.com/images/actual-size/57x57.png';
 
-  public columnBodyTemplate = (ctx: any) => html`
-    <img src="${ctx.cell.value}" class="image" />
-  `
+  public columnBodyTemplate = (ctx: any) => {
+    // Check if the cell value is null, undefined, or empty string
+    const imageUrl = ctx.cell.value ? ctx.cell.value : this.placeholderImageUrl;
+    
+    return html`
+      <img src="${imageUrl}" class="image" alt="Person" />
+    `;
+  }
 
   render() {
     return html`

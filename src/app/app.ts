@@ -183,15 +183,7 @@ export default class App extends LitElement {
             </span>
             <div slot="content">People</div>
           </igc-nav-drawer-item>
-          <igc-nav-drawer-item @click="${() => Router.go(`/reports`)}">
-            <span slot="icon">
-              <span class="material-icons icon">
-                pie_chart
-              </span>
-              <igc-ripple></igc-ripple>
-            </span>
-            <div slot="content">Reports</div>
-          </igc-nav-drawer-item>
+
           <igc-nav-drawer-item @click="${() => Router.go(`/notes`)}">
             <span slot="icon">
               <span class="material-icons icon">
