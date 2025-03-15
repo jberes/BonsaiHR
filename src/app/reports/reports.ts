@@ -1,8 +1,17 @@
 import { html, css, LitElement } from 'lit';
-import { customElement } from 'lit/decorators.js';
+import { customElement, state } from 'lit/decorators.js';
 import { defineRevealSdkWrappers } from 'reveal-sdk-wrappers';
 
+// Define the wrappers
 defineRevealSdkWrappers();
+
+// Import the Reveal global namespace
+declare global {
+  interface Window {
+    $: any;
+    RevealApi: any;
+  }
+}
 
 @customElement('app-reports')
 export default class Reports extends LitElement {
@@ -112,9 +121,48 @@ export default class Reports extends LitElement {
     }
   `;
 
+  @state()
+  private dashboardOptions = {
+    // Your dashboard options here
+  };
+
+  @state()
+  private revealSdkInitialized = false;
+
   constructor() {
     super();
-    $.ig.RevealSdkSettings.setBaseUrl('https://samples.revealbi.io/upmedia-backend/reveal-api/');
+    this.initializeRevealSdk();
+  }
+
+  private async initializeRevealSdk() {
+    try {
+      // Check if the RevealSDK script is already loaded
+      if (!document.querySelector('script[src*="reveal"]')) {
+        // If not loaded, you might need to dynamically load it
+        await this.loadRevealScript();
+      }
+
+      // Once loaded, initialize the SDK
+      if (window.$ && window.$.ig && window.$.ig.RevealSdkSettings) {
+        window.$.ig.RevealSdkSettings.setBaseUrl('https://samples.revealbi.io/upmedia-backend/reveal-api/');
+        this.revealSdkInitialized = true;
+      } else {
+        console.error('RevealSdkSettings is not available. Make sure the Reveal SDK is properly loaded.');
+      }
+    } catch (error) {
+      console.error('Failed to initialize Reveal SDK:', error);
+    }
+  }
+
+  private loadRevealScript(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      // This is just an example. You need to replace with the actual URL of the Reveal SDK script
+      const script = document.createElement('script');
+      script.src = 'https://path-to-your-reveal-sdk/infragistics.reveal.js';
+      script.onload = () => resolve();
+      script.onerror = (e) => reject(new Error('Failed to load Reveal SDK script'));
+      document.head.appendChild(script);
+    });
   }
 
   render() {
@@ -131,7 +179,11 @@ export default class Reports extends LitElement {
           <div class="row-layout group_4">
             <div class="column-layout group_5">
               <div class="column-layout group_6">
-                <rv-reveal-view dashboard="Sales"[options]="dashboardOptions" class="reveal-dash-board"></rv-reveal-view>
+                <rv-reveal-view 
+                  dashboard="Sales" 
+                  .options=${this.dashboardOptions}
+                  class="reveal-dash-board">
+                </rv-reveal-view>
               </div>
             </div>
           </div>
